@@ -1,0 +1,193 @@
+CREATE TABLE NashvillHousing(
+UniqueID NUMERIC ,	ParcelID varchar(255),	LandUse varchar(255),
+PropertyAddress varchar(255),	SaleDate varchar(255),
+SalePrice varchar(255),	LegalReference varchar(255),	SoldAsVacant varchar(255),
+OwnerName varchar(255),	OwnerAddress varchar(255),	Acreage float,
+TaxDistrict varchar(255),	LandValue numeric,	BuildingValue numeric,
+TotalValue numeric,	YearBuilt numeric,	Bedrooms int,	FullBath int,	HalfBath int
+)
+
+--  cleaning DATA in SQL Queries
+SELECT *
+FROM NashvillHousing
+-- ORDER by 1
+
+
+-- standar Date formate
+SELECT  to_char(saledate::date, 'MM/DD/YYYY')
+FROM NashvillHousing
+
+update NashvillHousing
+set saledate = to_char(saledate::date, 'MM/DD/YYYY')
+
+select to_date(saledate, 'mm/dd/yyyy')
+FROM NashvillHousing
+
+ALTER TABLE NashvillHousing
+ADD SaleDateConverted date;
+
+update NashvillHousing
+SET SaleDateConverted = to_date(saledate, 'mm/dd/yyyy')
+
+-- populate property address date
+SELECT *
+FROM NashvillHousing
+-- WHERE propertyaddress is null
+ORDER by NashvillHousing.parcelid
+
+
+-- use this query to fine null values and populate null values
+select a.parcelid, a.propertyaddress, b.parcelid, b.propertyaddress, COALESCE(a.propertyaddress,b.propertyaddress) 
+from NashvillHousing as a
+JOIN NashvillHousing as b
+ON a.parcelid = b.parcelid AND a.uniqueid <> b.uniqueid
+WHERE a.propertyaddress is null
+
+--  use this to update the null colum
+update NashvillHousing
+set propertyaddress = COALESCE(a.propertyaddress,b.propertyaddress)
+from NashvillHousing as a
+JOIN NashvillHousing as b
+ON a.parcelid = b.parcelid AND a.uniqueid <> b.uniqueid
+WHERE a.propertyaddress is null
+
+-- breaking out address into invidual colims(Adress, city, state)
+select propertyaddress
+from NashvillHousing
+
+-- sub-string, charecter index:[strpos]
+select 
+substring(propertyaddress, 1, strpos(propertyaddress, ',')- 1) as Adress,
+substring(propertyaddress, strpos(propertyaddress, ',') +1) as City
+from NashvillHousing
+
+alter table NashvillHousing
+add PropertySplitAddress varchar(255)
+
+update NashvillHousing
+set PropertySplitAddress = substring(propertyaddress, 1, strpos(propertyaddress, ',') -1)
+
+alter table NashvillHousing
+add PropertySplitCity varchar(255)
+
+update NashvillHousing
+set PropertySplitCity = substring(propertyaddress, strpos(propertyaddress, ',') +1)
+
+
+-- parsename: [SPLIT_PART()]
+select 
+split_part(owneraddress, ',', 1) as address,
+split_part(owneraddress, ',', 2) as city,
+split_part(owneraddress, ',', 3) as states
+from NashvillHousing
+
+alter table NashvillHousing
+add OwnerSpliteAddress varchar(255)
+
+update NashvillHousing
+set OwnerSpliteAddress = split_part(owneraddress, ',', 1)
+
+alter table NashvillHousing
+add OwnerSpliteCity varchar(255)
+
+update NashvillHousing
+set OwnerSpliteCity = split_part(owneraddress, ',', 2)
+
+alter table NashvillHousing
+add OwnerSpliteState varchar(255)
+
+update NashvillHousing
+set OwnerSpliteState = split_part(owneraddress, ',', 3)
+
+
+-- Change Y and N to YES and NO in 'Sold as vacant' field 
+select distinct(soldasvacant), count(soldasvacant)
+from NashvillHousing
+group by soldasvacant
+ORDER by 2
+
+select soldasvacant,
+case when soldasvacant = 'Y' then 'Yes'
+	WHEN soldasvacant = 'N' then 'No'
+	ELSE soldasvacant
+end
+from NashvillHousing
+
+update NashvillHousing
+set soldasvacant = case when soldasvacant = 'Y' then 'Yes'
+	WHEN soldasvacant = 'N' then 'No'
+	ELSE soldasvacant
+end
+
+--  remove duplicates [to remove duplicate we can use row NUMber, rank and dence rank]
+--  delete with CTE  work differently in postgresql
+with RowNumCTE as(
+SELECT * ,
+row_number()over(
+partition by parcelid,
+			propertyaddress,
+			saledate,
+			saleprice,
+			legalreference
+			order by uniqueid
+) as row_num
+FROM NashvillHousing
+-- ORDER by parcelid
+)
+-- DELETE
+select *
+FROM RowNumCTE
+where row_num >1
+-- from NashvillHousing NV
+-- using RowNumCTE
+-- where RowNumCTE.row_num >1 and nv.uniqueid = RowNumCTE.uniqueid
+
+where nv.uniqueid in (select RowNumCTE.uniqueid from RowNumCTE where RowNumCTE.row_num > 1)
+-- order by nv.parcelid
+
+-- delete unused colums [do this when working in veiws not the raw we import ]
+
+select *
+from NashvillHousing
+
+alter table NashvillHousing
+drop COLUMN owneraddress, 
+drop COLUMN taxdistrict, 
+drop COLUMN propertyaddress;
+
+alter table NashvillHousing
+drop COLUMN saledate
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
